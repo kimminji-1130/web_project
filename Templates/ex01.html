@@ -9,18 +9,30 @@
     <div class="container">  
         <video width="320" height="240" autoplay playsinline muted id="video"></video>
         <br><br>
-        <button type="button" class="btn btn-primary" id="pred_button" onclick="predict()">예측</button>
-        <br><br>
         <div id="prediction"></div>
+        <br><br>
+        <table class="table table-bordered" id="detectionTable">
+            <thead>
+                <tr>
+                    <th>시간</th>
+                    <th>객체</th>
+                    <th>객체 수</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 탐지 내역이 여기에 추가됨 -->
+            </tbody>
+        </table>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@1.0.0"> </script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@1.0.0"></script>
 
 <script type="text/javascript">
 
     let webcam, model;
+    let detections = {}; // 객체별 탐지 횟수를 저장하는 객체
 
     async function app() {
         model = await mobilenet.load();
@@ -28,19 +40,42 @@
             resizeWidth: 224,
             resizeHeight: 224,
         });
+
+        // 1분(60000ms) 간격으로 예측 함수 실행
+        setInterval(predict, 60000);
     }
 
     async function predict() {
         const image = await webcam.capture();
-        result = await model.classify(image);
+        const result = await model.classify(image);
+        const prediction = result[0];
+        const className = prediction.className;
+        const probability = prediction.probability.toFixed(2);
+        const currentTime = new Date().toLocaleString();
+
         document.getElementById("prediction").innerText = `
-            prediction: ${result[0].className}\n
-            probability: ${result[0].probability}
+            Prediction: ${className}\n
+            Probability: ${probability}
         `;
+
+        // 모든 객체를 탐지 시 테이블에 추가
+        detections[className] = (detections[className] || 0) + 1;
+
+        const table = document.getElementById("detectionTable").getElementsByTagName("tbody")[0];
+        const newRow = table.insertRow();
+        const timeCell = newRow.insertCell(0);
+        const classCell = newRow.insertCell(1);
+        const countCell = newRow.insertCell(2);
+
+        timeCell.textContent = currentTime;
+        classCell.textContent = className;
+        countCell.textContent = detections[className];
+
+        image.dispose(); // 메모리 관리
     }
 
     app();
-    
+
 </script>
 
 {% endblock %}

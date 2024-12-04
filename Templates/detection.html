@@ -1,70 +1,99 @@
 {% extends 'index.html' %}
 
 {% block content %}
-
-<script src="https://code.jquery.com/jquery-3.7.0.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
-
-<div class="container">  
+<div class="container">
+    <h1>Object Detection Monitoring</h1>
+    <video id="video" width="320" height="240" autoplay playsinline muted></video>
+    <div id="prediction"></div>
     <br>
-    <div class="container">  
-        <video width="320" height="240" autoplay playsinline muted id="video"></video>
-        <br><br>
-        <button type="button" class="btn btn-primary" id="pred_button" onclick="predict()">예측</button>
-        <br><br>
-        <div id="prediction"></div>
-    </div>
+    <table id="detectionTable" class="table table-bordered">
+        <thead>
+            <tr>
+                <th>시간</th>
+                <th>객체</th>
+                <th>객체 수</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 데이터가 여기에 추가됩니다 -->
+        </tbody>
+    </table>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"> </script>
-
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
 <script>
+    let webcam, model;
 
-    let model;
-    async function app() {
-        model = await tf.loadLayersModel('https://raw.githubusercontent.com/oralcoder/2023_PASS/main/dogscats/model.json');
+    async function setup() {
+        // 모델 로드
+        model = await mobilenet.load();
+        webcam = await tf.data.webcam(document.getElementById('video'), {
+            resizeWidth: 224,
+            resizeHeight: 224,
+        });
+
+        // 1분마다 예측 실행
+        setInterval(predict, 60000);
+
+        // 기존 데이터 가져와 테이블에 추가
+        fetchDataAndPopulateTable();
     }
-    //이미지 업로드
-    function loadImage(input) {
-        if (input.files && input.files[0]) {
-            let reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('preview').src = e.target.result;
-                console.log(e.target.result)
-            };       
-            reader.readAsDataURL( input.files[0] );
-        } 
-    };
-        //예측
+
     async function predict() {
-        let image = document.getElementById("preview");
-                // 이미지 픽셀값을 텐서로 변환
-        image = tf.browser.fromPixels(image);
-                // 이미지 사이즈 조절, div(255) : 0-1 사이의 값으로 정규화
-        image = tf.image.resizeBilinear(image, [224,224]).div(255);
-                // 차원 확대(shape 변경, axis=0), (224, 244)를 (1, 224, 224)로 변환
-        image = tf.expandDims(image, 0)
-                // arraySync() : 텐서를 배열로 변환하여 반환
-        pred = model.predict(image).arraySync();
-                // topk : top K 반환(예측 결과 중 가장 정확도가 높은 3개의 확률과 인덱스 반환)
-        const { values, indices } = tf.topk(pred, 2);
-        const index = indices.arraySync()[0];
-        const probability = values.arraySync()[0];
-        console.log(index, probability);
-        
-        let html = '';
-        for (let i=0; i<index.length; i++) {
-            html += `${imagenetLabels[index[i]]} : ${probability[i]}<br>`;
-        }
-        document.getElementById('prediction').innerHTML = html;
-    
-    }
-        app();
-    
-        imagenetLabels = [
-            "cat",
-            "dog",
-        ];
-    
-    </script>
+        const image = await webcam.capture();
+        const result = await model.classify(image);
+        const prediction = result[0];
+        const className = prediction.className;
+        const probability = prediction.probability.toFixed(2);
+        const currentTime = new Date().toISOString();  // ISO 형식으로 저장
 
+        // 서버로 데이터 전송
+        fetch('/save_detection/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                timestamp: currentTime,
+                object_name: className,
+                object_count: 1,
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Server response:', data);
+            // 새로운 데이터 테이블에 추가
+            addRowToTable(currentTime, className, 1);
+        })
+        .catch(err => console.error('Error:', err));
+
+        image.dispose(); // 메모리 관리
+    }
+
+    function addRowToTable(timestamp, objectName, objectCount) {
+        const table = document.getElementById("detectionTable").getElementsByTagName("tbody")[0];
+        const newRow = table.insertRow();
+        const timeCell = newRow.insertCell(0);
+        const objectCell = newRow.insertCell(1);
+        const countCell = newRow.insertCell(2);
+
+        timeCell.textContent = timestamp;
+        objectCell.textContent = objectName;
+        countCell.textContent = objectCount;
+    }
+
+    function fetchDataAndPopulateTable() {
+        // 서버에서 데이터 가져오기
+        fetch('/get_detections/')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Existing data:', data);
+                data.forEach(row => {
+                    addRowToTable(row.timestamp, row.object_name, row.object_count);
+                });
+            })
+            .catch(err => console.error('Error fetching data:', err));
+    }
+
+    setup();
+</script>
 {% endblock %}
