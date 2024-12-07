@@ -5,23 +5,71 @@ import json
 from .models import Detection
 from datetime import datetime
 from django.core.serializers import serialize
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.http import JsonResponse
-from django.shortcuts import render
 from django.db.models import Sum
+from django.utils.safestring import mark_safe
 
 def analysis(request):
-    # `object_name` 별 데이터 집계
-    data = Detection.objects.values('object_name').annotate(total_count=Sum('object_count')).order_by('-total_count')
+    # 객체별 데이터 집계
+    object_summary = (
+        Detection.objects.values('object_name')
+        .annotate(total_count=Sum('object_count'))
+        .order_by('-total_count')
+    )
 
-    # JSON 데이터로 전달할 리스트 생성
-    labels = [entry['object_name'] for entry in data]
-    counts = [entry['total_count'] for entry in data]
+    # 날짜별 데이터 집계
+    date_summary = (
+        Detection.objects.extra(select={'date': "DATE(timestamp)"})
+        .values('date', 'object_name')
+        .annotate(total_count=Sum('object_count'))
+        .order_by('date')
+    )
 
-    return render(request, 'analysis.html', {'labels': labels, 'counts': counts})
+    # 차트 데이터를 준비
+    chart_labels = []
+    chart_data = {}
+
+    for entry in date_summary:
+        date = entry['date']
+        object_name = entry['object_name']
+
+        # 날짜가 chart_labels에 없으면 추가하고, 모든 객체 데이터 초기화
+        if date not in chart_labels:
+            chart_labels.append(date)
+            for obj_name in chart_data.keys():
+                chart_data[obj_name].append(0)
+
+        # 객체 이름 초기화
+        if object_name not in chart_data:
+            chart_data[object_name] = [0] * len(chart_labels)
+
+        # 날짜 인덱스 가져오기
+        index = chart_labels.index(date)
+
+        # 배열의 길이가 부족하면 확장
+        if len(chart_data[object_name]) <= index:
+            chart_data[object_name].extend([0] * (index + 1 - len(chart_data[object_name])))
+
+        # 데이터 업데이트
+        chart_data[object_name][index] = entry['total_count']
+
+    # 모든 객체 이름에 대해 데이터 길이를 동기화 (누락된 날짜 채우기)
+    for object_name in chart_data:
+        if len(chart_data[object_name]) < len(chart_labels):
+            chart_data[object_name] += [0] * (len(chart_labels) - len(chart_data[object_name]))
+
+    # 탐지된 객체 내역
+    detections = Detection.objects.all().order_by('-timestamp')
+
+    # 데이터 직렬화 후 템플릿에 전달
+    return render(request, 'analysis.html', {
+        'left_table': object_summary,
+        'chart_labels': mark_safe(json.dumps(chart_labels)),
+        'chart_data': mark_safe(json.dumps(chart_data)),
+        'detections': detections,
+    })
 
 class PostMemberView(APIView):
     def post(self, request, *args, **kwargs):
@@ -105,19 +153,7 @@ def save_detection(request):
         return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
-# 분석 뷰
-def analysis(request):
-    # 객체별 데이터 집계
-    object_counts = Detection.objects.values('object_name').annotate(total_count=Sum('object_count'))
 
-    labels = [obj['object_name'] for obj in object_counts]
-    counts = [obj['total_count'] for obj in object_counts]
-
-    context = {
-        'labels': labels,
-        'counts': counts,
-    }
-    return render(request, 'analysis.html', context)
 
 
 # 탐지 내역 뷰
@@ -158,28 +194,6 @@ def save_detection(request):
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-
-# 분석 뷰
-def analysis(request):
-    # 객체별 데이터 집계
-    object_counts = Detection.objects.values('object_name').annotate(total_count=Sum('object_count'))
-
-    labels = [obj['object_name'] for obj in object_counts]
-    counts = [obj['total_count'] for obj in object_counts]
-
-    context = {
-        'labels': labels,
-        'counts': counts,
-    }
-    return render(request, 'analysis.html', context)
-
-
-# 탐지 내역 뷰
-def detection(request):
-    detections = Detection.objects.all().order_by('-timestamp')  # 최신 데이터 순서
-    return render(request, 'detection.html', {'detections': detections})
-
-
 # 데이터 반환 API
 def get_detections(request):
     if request.method == 'GET':
@@ -188,42 +202,6 @@ def get_detections(request):
         return JsonResponse({'detections': data}, safe=False)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=405)
-def analysis(request):
-    # Fetch detections grouped by object_name
-    object_summary = Detection.objects.values('object_name').annotate(total_count=Sum('object_count')).order_by('-total_count')
-
-    # Fetch detections grouped by date
-    date_summary = Detection.objects.extra(select={'date': "DATE(timestamp)"}).values('date', 'object_name').annotate(total_count=Sum('object_count')).order_by('date')
-
-    # Prepare data for left-side table (object summary)
-    left_table = object_summary
-
-    # Prepare data for right-side chart
-    chart_labels = []
-    chart_data = {}
-
-    for entry in date_summary:
-        if entry['date'] not in chart_labels:
-            chart_labels.append(entry['date'])
-
-        if entry['object_name'] not in chart_data:
-            chart_data[entry['object_name']] = [0] * len(chart_labels)
-
-        chart_data[entry['object_name']][chart_labels.index(entry['date'])] = entry['total_count']
-
-    # Fetch all detections for bottom table
-    detections = Detection.objects.all().order_by('-timestamp')
-
-    return render(request, 'analysis.html', {
-        'left_table': left_table,
-        'chart_labels': chart_labels,
-        'chart_data': chart_data,
-        'detections': detections,
-    })
-def detection(request):
-    detections = Detection.objects.all().order_by('-timestamp')  # 최신 데이터 순서로 정렬
-    return render(request, 'detection.html', {'detections': detections})  # 데이터를 템플릿으로 전달
-
 
 def get_detections(request):
     if request.method == 'GET':
