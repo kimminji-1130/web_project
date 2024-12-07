@@ -31,13 +31,14 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    'django.contrib.admin',#관리용 사이트
+    'django.contrib.auth',#인증 시스템
+    'django.contrib.contenttypes',#컨텐츠 타입을 위한 프레임워크
+    'django.contrib.sessions',#세션 프레임워크
+    'django.contrib.messages',#메세징 프레임워크
+    'django.contrib.staticfiles',#정적 파일 관리 프레임워크
     'image_processor',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -67,6 +68,15 @@ TEMPLATES = [
         },
     },
 ]
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',  # API 브라우저 활성화
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+    ],
+}
 
 WSGI_APPLICATION = 'WebProject.wsgi.application'
 
@@ -78,6 +88,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        #데이터 베이스 변경시 이쪽 고치면 됨
     }
 }
 

@@ -1,49 +1,105 @@
 {% extends 'index.html' %}
 
 {% block content %}
+<div class="container my-4">
 
-<script src="https://code.jquery.com/jquery-3.7.0.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+    <div class="row">
+        <!-- Right Section: Chart and Details -->
+        <div class="col-md-12">
+            <div>
+                <h4>날짜별 객체 그래프</h4>
+                <canvas id="dateChart" width="400" height="200"></canvas>
+            </div>
 
-<div class="container">  
-    <br>
-    <input type="file" id="input_image" accept="image/*" onchange="loadImage(this)">
-    <br><br>
-    <img id="preview" width="480"/>
-    <br><br>
-    <button type="button" class="btn btn-primary" id="pred_button" onclick="predict()">예측</button>
-    <br><br>
-    <div id="prediction"></div>
+            <div class="mt-4">
+                <h4>상세 통계</h4>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>시간</th>
+                            <th>객체</th>
+                            <th>객체 수</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for detection in detections %}
+                        <tr>
+                            <td>{{ detection.timestamp }}</td>
+                            <td>{{ detection.object_name }}</td>
+                            <td>{{ detection.object_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@1.0.0"> </script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script type="text/javascript">
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Chart Data from Django Context
+        const chartLabels = {{ chart_labels|safe }};
+        const chartData = {{ chart_data|safe }};
 
-    let model;
+        const datasets = Object.keys(chartData).map(objectName => {
+            return {
+                label: objectName,
+                data: chartData[objectName],
+                borderColor: getRandomColor(),
+                fill: false,
+                tension: 0.1,
+            };
+        });
 
-    async function app() {
-        model = await mobilenet.load();
-    }
+        const ctx = document.getElementById('dateChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: datasets,
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: '날짜별 객체 탐지 결과',
+                    },
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: '날짜',
+                        },
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: '객체 수',
+                        },
+                        beginAtZero: true,
+                    },
+                },
+            },
+        });
 
-    function loadImage(input) {
-        if (input.files && input.files[0]) {
-            let reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('preview').src = e.target.result;
-            };       
-            reader.readAsDataURL( input.files[0] );
-       } 
-    };
-    async function predict() {
-        let image = document.getElementById("preview");
-        pred = await model.classify(image);
-        const html = `${pred[0].className} : ${pred[0].probability}`;
-        document.getElementById('prediction').innerHTML = html;
-    }
-
-    app();
-    
+        // Random Color Generator for Chart.js
+        function getRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+    });
 </script>
-
 {% endblock %}

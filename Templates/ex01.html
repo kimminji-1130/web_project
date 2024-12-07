@@ -4,9 +4,9 @@
 
 <script src="https://code.jquery.com/jquery-3.7.0.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
 
-<div class="container">  
+<div class="container">
     <br>
-    <div class="container">  
+    <div class="container">
         <video width="320" height="240" autoplay playsinline muted id="video"></video>
         <br><br>
         <div id="prediction"></div>
@@ -30,19 +30,35 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@1.0.0"></script>
 
 <script type="text/javascript">
-
     let webcam, model;
     let detections = {}; // 객체별 탐지 횟수를 저장하는 객체
 
     async function app() {
         model = await mobilenet.load();
-        webcam = await tf.data.webcam(video, {
+        webcam = await tf.data.webcam(document.getElementById("video"), {
             resizeWidth: 224,
             resizeHeight: 224,
         });
 
-        // 1분(60000ms) 간격으로 예측 함수 실행
-        setInterval(predict, 60000);
+        // 데이터베이스에서 초기 데이터를 로드하여 테이블에 표시
+        await fetchDataAndUpdateTable();
+
+        // 1초(1000ms) 간격으로 예측 함수 실행
+        setInterval(predict, 1000);
+    }
+
+    async function fetchDataAndUpdateTable() {
+        try {
+            const response = await fetch('/image_processor/get-detections/');
+            if (response.ok) {
+                const data = await response.json();
+                updateTable(data.detections);
+            } else {
+                console.error("Error fetching data:", response.statusText);
+            }
+        } catch (error) {
+            console.error("Fetch error:", error);
+        }
     }
 
     async function predict() {
@@ -58,24 +74,74 @@
             Probability: ${probability}
         `;
 
-        // 모든 객체를 탐지 시 테이블에 추가
         detections[className] = (detections[className] || 0) + 1;
 
-        const table = document.getElementById("detectionTable").getElementsByTagName("tbody")[0];
-        const newRow = table.insertRow();
-        const timeCell = newRow.insertCell(0);
-        const classCell = newRow.insertCell(1);
-        const countCell = newRow.insertCell(2);
+        // 데이터베이스에 저장
+        const saved = await saveToDatabase(currentTime, className, detections[className]);
 
-        timeCell.textContent = currentTime;
-        classCell.textContent = className;
-        countCell.textContent = detections[className];
+        if (saved) {
+            // 데이터베이스에서 최신 데이터 로드 후 테이블 업데이트
+            await fetchDataAndUpdateTable();
+        }
 
         image.dispose(); // 메모리 관리
     }
 
-    app();
+    async function saveToDatabase(timestamp, objectName, objectCount) {
+        try {
+            const response = await fetch('/image_processor/save-detection/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({
+                    timestamp: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                    object_name: objectName,
+                    object_count: objectCount,
+                }),
+            });
+            if (response.ok) {
+                console.log("Data saved successfully!");
+                return true;
+            } else {
+                console.error("Error saving data:", await response.text());
+                return false;
+            }
+        } catch (error) {
+            console.error("Save error:", error);
+            return false;
+        }
+    }
 
+    function updateTable(detections) {
+        const tableBody = document.getElementById("detectionTable").getElementsByTagName("tbody")[0];
+        tableBody.innerHTML = ''; // 기존 데이터 초기화
+
+        detections.forEach(detection => {
+            const newRow = tableBody.insertRow();
+            const timeCell = newRow.insertCell(0);
+            const classCell = newRow.insertCell(1);
+            const countCell = newRow.insertCell(2);
+
+            timeCell.textContent = detection.timestamp;
+            classCell.textContent = detection.object_name;
+            countCell.textContent = detection.object_count;
+        });
+    }
+
+    function getCsrfToken() {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.startsWith('csrftoken=')) {
+                return cookie.substring('csrftoken='.length, cookie.length);
+            }
+        }
+        return '';
+    }
+
+    app();
 </script>
 
 {% endblock %}

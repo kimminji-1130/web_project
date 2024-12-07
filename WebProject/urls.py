@@ -17,9 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from . import views
-
+from image_processor.views import PostMemberView 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('image_processor/', include('image_processor.urls')), 
+    path('image_processor/', include('image_processor.urls')),
     path("", views.index),
+     path('postMember/', PostMemberView.as_view(), name='post_member'), 
 ]

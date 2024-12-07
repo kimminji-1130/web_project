@@ -1,26 +1,33 @@
 <nav class="navbar bg-body-tertiary">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="#">
-        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQIH3AqtDhwCrLnZSpBRzySxjaTLaZl-9_dw&s" alt="Logo" width="30" height="24" class="d-inline-block align-text-top">
-        PBL프로젝트
+  <div class="container-fluid">
+      <a class="navbar-brand" href="/image_processor/main/">
+          <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQIH3AqtDhwCrLnZSpBRzySxjaTLaZl-9_dw&s" alt="Logo" width="30" height="24" class="d-inline-block align-text-top">
+          PBL프로젝트
       </a>
       <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="pills-main-tab" type="button" onclick="location.href='{% url 'image_processor:main' %}'">메인</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="pills-ex01-tab" type="button" onclick="location.href='{% url 'image_processor:ex01' %}'">실시간 관제</button>
-        </li>
-        
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="pills-analysis-tab" type="button" onclick="location.href='{% url 'image_processor:analysis' %}'">분석</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="pills-detection-tab" type="button" onclick="location.href='{% url 'image_processor:detection' %}'">탐지</button>
-        </li>
-    </ul>
-    </div>
-  </nav>
+          <li class="nav-item" role="presentation">
+              <button class="nav-link" id="pills-main-tab" type="button" onclick="location.href='{% url 'image_processor:main' %}'">메인</button>
+          </li>
+          <li class="nav-item" role="presentation">
+              <button class="nav-link" id="pills-ex01-tab" type="button" onclick="location.href='{% url 'image_processor:ex01' %}'">실시간 관제</button>
+          </li>
+          <li class="nav-item" role="presentation">
+              <button class="nav-link" id="pills-analysis-tab" type="button" onclick="location.href='{% url 'image_processor:analysis' %}'">분석</button>
+          </li>
+          <li class="nav-item" role="presentation">
+              <button class="nav-link" id="pills-detection-tab" type="button" onclick="location.href='{% url 'image_processor:detection' %}'">탐지</button>
+          </li>
+      </ul>
+  </div>
+</nav>
 
+<style>
+  .nav-link {
+      color: black !important; /* 텍스트 색을 검은색으로 */
+  }
+  .nav-link:hover {
+      color: #555 !important; /* 호버 시 약간 밝은 검정색 */
+  }
+</style>
 
   

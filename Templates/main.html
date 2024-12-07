@@ -1,21 +1,128 @@
 {% extends 'index.html' %}
 
 {% block content %}
+<div class="container my-4">
+    <!-- Summary Cards -->
+    <div class="summary-container d-flex flex-wrap justify-content-center gap-3 mb-4">
+        <!-- Card 1 -->
+        <div class="summary-card text-center p-4 shadow-sm bg-light rounded">
+            <span class="icon icon-purple">👤</span>
+            <h4>총 인식수</h4>
+            <p>{{ total_recognitions }}</p>
+        </div>
 
-<script src="https://code.jquery.com/jquery-3.7.0.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+        <!-- Card 2 -->
+        <div class="summary-card text-center p-4 shadow-sm bg-light rounded">
+            <span class="icon icon-blue">🦌</span>
+            <h4>고라니</h4>
+            <p>{{ deer_count }}</p>
+        </div>
 
-<div class="container">  
-    
+        <!-- Card 3 -->
+        <div class="summary-card text-center p-4 shadow-sm bg-light rounded">
+            <span class="icon icon-red">🐗</span>
+            <h4>멧돼지</h4>
+            <p>{{ boar_count }}</p>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="summary-card text-center p-4 shadow-sm bg-light rounded">
+            <span class="icon icon-blue">🐦</span>
+            <h4>새</h4>
+            <p>{{ bird_count }}</p>
+        </div>
+
+        <!-- Card 5 -->
+        <div class="summary-card text-center p-4 shadow-sm bg-light rounded">
+            <span class="icon icon-purple">🦝</span>
+            <h4>너구리</h4>
+            <p>{{ raccoon_count }}</p>
+        </div>
+
+        <!-- Card 6 -->
+        <div class="summary-card text-center p-4 shadow-sm bg-light rounded">
+            <span class="icon icon-red">🧍</span>
+            <h4>사람</h4>
+            <p>{{ people_count }}</p>
+        </div>
+    </div>
+
+    <!-- Statistics and Charts -->
+    <div class="chart-container">
+        <div class="row">
+            <!-- Bar Chart -->
+            <div class="col-md-6">
+                <div class="card shadow-sm p-4">
+                    <h4 class="text-center mb-3">객체 인식 관계 현황</h4>
+                    <canvas id="barChart" class="chart" style="max-height: 200px;"></canvas>
+                </div>
+            </div>
+
+            <!-- Pie Chart -->
+            <div class="col-md-6">
+                <div class="card shadow-sm p-4">
+                    <h4 class="text-center mb-3">동물 탐지 비율</h4>
+                    <canvas id="pieChart" class="chart" style="max-height: 200px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@1.0.0"> </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script type="text/javascript">
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Django에서 전달받은 데이터
+        const labels = JSON.parse('{{ labels|safe }}'); // 라벨 데이터
+        const counts = JSON.parse('{{ counts|safe }}'); // 개수 데이터
 
+        // Bar Chart
+        const barCtx = document.getElementById('barChart').getContext('2d');
+        new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '객체 탐지 수',
+                    data: counts,
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
 
-    app();
-    
+        // Pie Chart
+        const pieCtx = document.getElementById('pieChart').getContext('2d');
+        new Chart(pieCtx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: counts,
+                    backgroundColor: ['#36A2EB', '#FF6384', '#FFCE56', '#4BC0C0', '#9966FF']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    });
 </script>
-
 {% endblock %}
